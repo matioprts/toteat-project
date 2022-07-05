@@ -123,13 +123,13 @@ for hour in filtered_hours:
 
 plotter.plot_bar_with_full_labels(filtered_hours,sort_values,init_date,end_date,"Hora","Cantidad de Pedidos","Pedidos por Horario","./resultados/pedidos_por_horario.png")
 
-# eating_times = []
-# for hour in hours_eating:
-#   eating_times.append(str(hour)[:-3])
-# eating_times.sort()
-# set_times = set(eating_times)
+eating_times = []
+for hour in hours_eating:
+  eating_times.append(str(hour)[:-3])
+eating_times.sort()
+set_times = set(eating_times)
 
-# plotter.plot_hist_with_degrees_labels(eating_times,int(len(set_times)/5),90,init_date,end_date,"Hora","Cantidad de Pedidos","Tiempo de Clientes en Restaurant","./resultados/tiempos_clientes_restaurant")
+plotter.plot_hist_with_degrees_labels(eating_times,int(len(set_times)/5),90,init_date,end_date,"Hora","Cantidad de Pedidos","Tiempo de Clientes en Restaurant","./resultados/tiempos_clientes_restaurant")
 
 filtered_payments = list(payments.keys())
 filtered_payments.sort()
@@ -204,10 +204,6 @@ for percentage in percentage_sales:
   explode.append(0)
 
 plotter.plot_pie(percentage_sales,explode,labels_sales,init_date,end_date,"Distribución de las Ventas","./resultados/distribucion_ventas.png")
-
-eating_times = []
-for hour in hours_eating:
-  eating_times.append(str(hour)[:-3])
 
 df_amounts_week = pd.DataFrame(amounts_week_per_client)
 print(df_amounts_week.describe())
