@@ -1,8 +1,11 @@
+from statistics import mean
 import numpy as np
 import requests
 from datetime import datetime
 import matplotlib.pyplot as plt
 import json
+import plotter
+import pandas as pd
 
 # request = requests.get("https://storage.googleapis.com/backupdatadev/ejercicio/ventas.json")
 # data = request.json()
@@ -37,7 +40,9 @@ waiters = dict()
 # Products Data Structure
 total_amount = 0
 amount_per_type = dict()
-
+duplicated_products = dict()
+total_sell = 0
+sell_per_product = dict()
 for order in data:
   # Dates Info
   start_date = datetime.strptime(order['date_opened'], '%Y-%m-%d %H:%M:%S')
@@ -78,24 +83,37 @@ for order in data:
   else:
     waiters[order['waiter']] = 1
   # Products Info
+  products = dict()
   total_amount += order['total']
   for product in order['products']:
     if amount_per_type.get(product['category']):
       amount_per_type[product['category']] += product['price']*product['quantity']
     else:
       amount_per_type[product['category']] = product['price']*product['quantity']
+    if products.get(product['name']):
+      products[product['name']] += 1
+    else:
+      products[product['name']] = 1
+    if sell_per_product.get(product['name']):
+      sell_per_product[product['name']] += 1
+    else:
+      sell_per_product[product['name']] = 1
+    total_sell += 1
+  for product in products.keys():
+    if products[product] > 1:
+      if duplicated_products.get(product):
+        if duplicated_products[product].get(products[product]):
+          duplicated_products[product][products[product]] += 1
+        else:
+          duplicated_products[product][products[product]] = 1
+      else:
+        duplicated_products[product] = dict()
+        duplicated_products[product][products[product]] = 1
 
 days = ['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo']
 values = list(days_counter.values())
 
-fig = plt.figure(figsize = (10, 5))
-plt.bar(days, values, color ='maroon',
-        width = 0.4)
-plt.text(0.01, 0.89, f'Ventana de estudio\nFecha Inicio: {init_date.date()}\nFecha Término: {end_date.date()}', fontsize=11, transform=plt.gcf().transFigure)
-plt.xlabel("Dia")
-plt.ylabel("Cantidad de Pedidos")
-plt.title("Pedidos diarios")
-plt.savefig('./resultados/pedidos_diarios.png')
+plotter.plot_bar(days,values,init_date,end_date,"Día","Cantidad de Pedidos","Pedidos Diarios","./resultados/pedidos_diarios.png")
 
 filtered_hours = list(hours_counter.keys())
 filtered_hours.sort()
@@ -103,29 +121,15 @@ sort_values = list()
 for hour in filtered_hours:
   sort_values.append(hours_counter[hour])
 
-fig = plt.figure(figsize = (10, 5))
-plt.xticks(np.arange(min(filtered_hours), max(filtered_hours)+1, 1.0))
-plt.bar(filtered_hours, sort_values, color ='maroon',
-        width = 0.4)
-plt.text(0.01, 0.89, f'Ventana de estudio\nFecha Inicio: {init_date.date()}\nFecha Término: {end_date.date()}', fontsize=11, transform=plt.gcf().transFigure)
-plt.xlabel("Hora")
-plt.ylabel("Cantidad de Pedidos")
-plt.title("Pedidos por horario")
-plt.savefig('./resultados/pedidos_por_horario.png')
+plotter.plot_bar_with_full_labels(filtered_hours,sort_values,init_date,end_date,"Hora","Cantidad de Pedidos","Pedidos por Horario","./resultados/pedidos_por_horario.png")
 
-eating_times = []
-for hour in hours_eating:
-  eating_times.append(str(hour)[:-3])
-eating_times.sort()
-set_times = set(eating_times)
-fig = plt.figure(figsize = (15, 6))
-plt.hist(eating_times, color='maroon', edgecolor='black', bins=int(len(set_times)/5))
-plt.xticks(rotation=90, fontsize='x-small')
-plt.text(0.01, 0.89, f'Ventana de estudio\nFecha Inicio: {init_date.date()}\nFecha Término: {end_date.date()}', fontsize=11, transform=plt.gcf().transFigure)
-plt.xlabel("Hora")
-plt.ylabel("Cantidad de Pedidos")
-plt.title("Tiempo de Clientes en Restaurant")
-plt.savefig('./resultados/tiempos_clientes_restaurant.png')
+# eating_times = []
+# for hour in hours_eating:
+#   eating_times.append(str(hour)[:-3])
+# eating_times.sort()
+# set_times = set(eating_times)
+
+# plotter.plot_hist_with_degrees_labels(eating_times,int(len(set_times)/5),90,init_date,end_date,"Hora","Cantidad de Pedidos","Tiempo de Clientes en Restaurant","./resultados/tiempos_clientes_restaurant")
 
 filtered_payments = list(payments.keys())
 filtered_payments.sort()
@@ -133,14 +137,7 @@ sort_values = list()
 for payment in filtered_payments:
   sort_values.append(payments[payment])
 
-fig = plt.figure(figsize = (15, 6))
-plt.bar(filtered_payments, sort_values, color ='maroon',
-        width = 0.4)
-plt.text(0.01, 0.89, f'Ventana de estudio\nFecha Inicio: {init_date.date()}\nFecha Término: {end_date.date()}', fontsize=11, transform=plt.gcf().transFigure)
-plt.xlabel("Método de pago")
-plt.ylabel("Cantidad de Pedidos")
-plt.title("Métodos de pago")
-plt.savefig('./resultados/metodo_pago.png')
+plotter.plot_bar(filtered_payments,sort_values,init_date,end_date,"Método de Pago","Cantidad de Pedidos","Métodos de pago","./resultados/metodo_pago.png")
 
 zones = []
 for zone in diners_per_zone.keys():
@@ -151,46 +148,12 @@ for zone in diners_per_zone.keys():
     sort_values.append(diners_per_zone[zone][diners])
   zones.append(sort_values)
 
-longest_diners_zone = max(zones, key=len)
-zones_labels = list(diners_per_zone.keys())
-diners_labels = [i for i in range(1,len(longest_diners_zone)+1)]
-
-# set width of bar
-barWidth = 0.25
-colors = ['c', 'm', 'g', 'b', 'r', 'y', 'k', 'w']
-fig = plt.subplots(figsize =(12, 5))
-
-br_flag = False
-for index in range(len(zones)):
-  # Set position of bar on X axis
-  if not br_flag:
-    br = np.arange(len(longest_diners_zone))
-    br_flag = True
-  else:
-    br = [x + barWidth for x in br]
-  plt.bar(br, zones[index], color=colors[index], width = barWidth,
-        edgecolor ='black', label=zones_labels[index])
-
-# Adding Xticks
-plt.xlabel('Clientes por zona', fontweight ='bold', fontsize = 15)
-plt.ylabel('Cantidad de Pedidos', fontweight ='bold', fontsize = 15)
-
-plt.xticks([r + barWidth for r in range(len(longest_diners_zone))], diners_labels)
-plt.text(0.01, 0.89, f'Ventana de estudio\nFecha Inicio: {init_date.date()}\nFecha Término: {end_date.date()}', fontsize=11, transform=plt.gcf().transFigure)
-plt.legend()
-plt.savefig('./resultados/clientes_por_zona.png')
+plotter.plot_multiple_bars(zones,diners_per_zone,1,init_date,end_date,"Clientes por Zona","Cantidad de Pedidos","Distribución de Clientes por Zona","./resultados/clientes_por_zona.png")
 
 waiters_names = list(waiters.keys())
 waiters_values = list(waiters.values())
 
-fig = plt.figure(figsize = (15, 6))
-plt.bar(waiters_names, waiters_values, color ='maroon',
-        width = 0.4)
-plt.text(0.01, 0.89, f'Ventana de estudio\nFecha Inicio: {init_date.date()}\nFecha Término: {end_date.date()}', fontsize=11, transform=plt.gcf().transFigure)
-plt.xlabel("Garzon(a)")
-plt.ylabel("Cantidad de Pedidos")
-plt.title("Ordenes por Garzon(a)")
-plt.savefig('./resultados/ordenes_garzones.png')
+plotter.plot_bar(waiters_names,waiters_values,init_date,end_date,"Garzon(a)","Cantidad de Pedidos","Ordenes por Garzon(a)","./resultados/ordenes_garzones.png")
 
 labels_pie = list()
 percentage_pie = list()
@@ -208,10 +171,45 @@ for percentage in percentage_pie:
   else:
     explode.append(0)
 
-fig1, ax1 = plt.subplots()
-ax1.pie(percentage_pie, explode=explode, labels=labels_pie, autopct='%1.1f%%',
-        shadow=True, startangle=90)
-ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-plt.text(0.01, 0.01, f'Ventana de estudio\nFecha Inicio: {init_date.date()}\nFecha Término: {end_date.date()}', fontsize=11, transform=plt.gcf().transFigure)
-plt.title("Distribución del Ingreso por tipo de plato")
-plt.savefig('./resultados/distribucion_ingreso.png')
+plotter.plot_pie(percentage_pie,explode,labels_pie,init_date,end_date,"Distribución del Ingreso por Tipo de Plato","./resultados/distribucion_ingreso.png")
+
+longest_map = 0
+for product in duplicated_products.keys():
+  aux = max(duplicated_products[product])
+  if aux > longest_map:
+    longest_map = aux
+
+products_repeated = []
+for product in duplicated_products.keys():
+  filtered_numbers = list(duplicated_products[product].keys())
+  filtered_numbers.sort()
+  sort_values = list()
+  for index in range(2,longest_map+1):
+    if duplicated_products[product].get(index):
+      sort_values.append(duplicated_products[product][index])
+    else:
+      sort_values.append(0)
+  products_repeated.append(sort_values)
+
+plotter.plot_multiple_bars(products_repeated,duplicated_products,2,init_date,end_date,"Cantidad de Repetidos por Mesa","Cantidad de Pedidos","Platos Repetidos por Mesa","./resultados/productos_repetidos.png", longest_map=longest_map-1, bar_width=0.075)
+
+labels_sales = list()
+percentage_sales = list()
+for product in sell_per_product.keys():
+  labels_sales.append(product)
+  percentage = sell_per_product[product]/total_sell
+  percentage_sales.append(percentage)
+explode = list()
+for percentage in percentage_sales:
+  explode.append(0)
+
+plotter.plot_pie(percentage_sales,explode,labels_sales,init_date,end_date,"Distribución de las Ventas","./resultados/distribucion_ventas.png")
+
+eating_times = []
+for hour in hours_eating:
+  eating_times.append(str(hour)[:-3])
+
+df_amounts_week = pd.DataFrame(amounts_week_per_client)
+print(df_amounts_week.describe())
+df_amounts_weekend = pd.DataFrame(amounts_weekend_per_client)
+print(df_amounts_weekend.describe())
