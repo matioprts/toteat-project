@@ -1,17 +1,15 @@
-from statistics import mean
-import numpy as np
 import requests
 from datetime import datetime
-import matplotlib.pyplot as plt
 import json
 import plotter
 import pandas as pd
+import pdf_generator
 
-# request = requests.get("https://storage.googleapis.com/backupdatadev/ejercicio/ventas.json")
-# data = request.json()
+request = requests.get("https://storage.googleapis.com/backupdatadev/ejercicio/ventas.json")
+data = request.json()
 
-with open('json_data.json') as json_file:
-    data = json.load(json_file)
+# with open('json_data.json') as json_file:
+#     data = json.load(json_file)
 
 # Dates Data Structures
 timestamps = list()
@@ -206,6 +204,6 @@ for percentage in percentage_sales:
 plotter.plot_pie(percentage_sales,explode,labels_sales,init_date,end_date,"Distribución de las Ventas","./resultados/distribucion_ventas.png")
 
 df_amounts_week = pd.DataFrame(amounts_week_per_client)
-print(df_amounts_week.describe())
 df_amounts_weekend = pd.DataFrame(amounts_weekend_per_client)
-print(df_amounts_weekend.describe())
+
+pdf_generator.generate_pdf(df_amounts_week, df_amounts_weekend)
